@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Speed Runner Fixed</title>
+
+<style>
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: linear-gradient(180deg, #B3E5FC 0%, #81D4FA 100%);
+    touch-action: none;
+    user-select: none;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+#game-container {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: calc(var(--vh, 1vh) * 100);
+}
+
+/* GAME */
+#game-screen {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(180deg, #B3E5FC 0%, #81D4FA 100%);
+    transition: filter 0.3s, background 2s ease;
+}
+
+/* BIRD */
+#bird {
+    position: absolute;
+    width: 10vw;
+    height: 10vw;
+    max-width: 48px;
+    max-height: 48px;
+    min-width: 28px;
+    min-height: 28px;
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    border: 3px solid #FF8C00;
+    border-radius: 50%;
+    top: 80%;
+    transform: translateY(-50%);
+    z-index: 10;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    transition: box-shadow 0.2s;
+}
+
+/* Shield visual - ENHANCED */
+#bird.shield {
+    box-shadow: 0 0 0 6px rgba(0,200,255,0.8),
+                0 0 0 12px rgba(0,200,255,0.4),
+                0 0 20px rgba(0,200,255,0.6),
+                0 4px 8px rgba(0,0,0,0.3);
+    animation: shieldPulse 1s ease-in-out infinite;
+}
+
+@keyframes shieldPulse {
+    0%, 100% { 
+        box-shadow: 0 0 0 6px rgba(0,200,255,0.8),
+                    0 0 0 12px rgba(0,200,255,0.4),
+                    0 0 20px rgba(0,200,255,0.6),
+                    0 4px 8px rgba(0,0,0,0.3);
+    }
+    50% { 
+        box-shadow: 0 0 0 8px rgba(0,200,255,1),
+                    0 0 0 16px rgba(0,200,255,0.6),
+                    0 0 30px rgba(0,200,255,0.8),
+                    0 4px 8px rgba(0,0,0,0.3);
+    }
+}
+
+/* PILLARS */
+.pillar-container {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 8%;
+    display: flex;
+}
+
+.pillar-segment {
+    background: linear-gradient(180deg, #8BC34A 0%, #689F38 100%);
+    border: 2px solid #558B2F;
+    box-shadow: inset 0 -4px 8px rgba(0,0,0,0.2);
+}
+
+/* POWER UPS */
+.powerup {
+    position: absolute;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    z-index: 12;
+    border: 3px solid rgba(255,255,255,0.6);
+    animation: powerupFloat 2s ease-in-out infinite, powerupGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes powerupFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes powerupGlow {
+    0%, 100% { box-shadow: 0 0 10px currentColor; }
+    50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+}
+
+.powerup.shield { 
+    background: linear-gradient(135deg, #00E5FF 0%, #00B8D4 100%);
+    color: #00E5FF;
+}
+.powerup.speed { 
+    background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
+    color: #FF9800;
+}
+
+/* SCORE DISPLAY */
+#score-container {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    color: white;
+    text-align: right;
+    z-index: 20;
+}
+
+#score {
+    font-size: 28px;
+    font-weight: bold;
+    text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+    margin-bottom: 4px;
+}
+
+#best-score {
+    font-size: 16px;
+    color: #FFD700;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+/* SHIELD INDICATOR */
+#shield-indicator {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    padding: 8px 16px;
+    background: rgba(0,200,255,0.3);
+    border: 2px solid rgba(0,200,255,0.6);
+    border-radius: 20px;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+    z-index: 20;
+    display: none;
+}
+
+#shield-indicator.active {
+    display: block;
+    animation: shieldIndicatorPulse 1s ease-in-out infinite;
+}
+
+@keyframes shieldIndicatorPulse {
+    0%, 100% { 
+        background: rgba(0,200,255,0.3);
+        border-color: rgba(0,200,255,0.6);
+    }
+    50% { 
+        background: rgba(0,200,255,0.5);
+        border-color: rgba(0,200,255,1);
+    }
+}
+
+/* OVERLAYS */
+.overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    text-align: center;
+    z-index: 30;
+}
+
+.overlay h2 {
+    font-size: 48px;
+    margin: 0 0 20px 0;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 4px 8px rgba(0,0,0,0.3);
+}
+
+.overlay p {
+    font-size: 18px;
+    margin: 8px 0;
+    color: #B0BEC5;
+}
+
+.stats {
+    margin: 20px 0;
+    padding: 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 12px;
+    min-width: 250px;
+}
+
+.stat-row {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+    font-size: 20px;
+}
+
+.stat-label {
+    color: #B0BEC5;
+}
+
+.stat-value {
+    color: #FFD700;
+    font-weight: bold;
+}
+
+button {
+    margin-top: 20px;
+    padding: 14px 32px;
+    font-size: 20px;
+    font-weight: bold;
+    background: linear-gradient(135deg, #4CAF50 0%, #388E3C 100%);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+/* NEW BEST INDICATOR */
+.new-best {
+    color: #FFD700;
+    font-size: 16px;
+    font-weight: bold;
+    animation: newBestBlink 0.5s ease-in-out 3;
+}
+
+@keyframes newBestBlink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+</style>
+</head>
+
+<body>
+
+<div id="game-container">
+    <div id="game-screen">
+        <div id="shield-indicator">🛡️ SHIELD ACTIVE</div>
+        <div id="score-container">
+            <div id="score">Score: 0</div>
+            <div id="best-score">Best: 0</div>
+        </div>
+        <div id="bird"></div>
+    </div>
+
+    <div id="start" class="overlay">
+        <h2>🦅 Speed Runner</h2>
+        <p>Move left/right to dodge obstacles</p>
+        <p>Collect cyan shields for protection</p>
+        <p>Collect orange boosts for speed</p>
+		
+		<input id="playerName"
+placeholder="Enter your name"
+style="
+  padding:12px;
+  font-size:18px;
+  border-radius:20px;
+  border:none;
+  text-align:center;
+  margin-bottom:10px;
+">
+
+        <div class="stats">
+            <div class="stat-row">
+                <span class="stat-label">Best Score:</span>
+                <span class="stat-value" id="menu-best">0</span>
+            </div>
+        </div>
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <div id="over" class="overlay" style="display:none">
+        <h2>Game Over</h2>
+        <div class="stats">
+            <div class="stat-row">
+                <span class="stat-label">Score:</span>
+                <span class="stat-value" id="final-score">0</span>
+            </div>
+            <div class="stat-row">
+                <span class="stat-label">Best Score:</span>
+                <span class="stat-value" id="final-best">0</span>
+            </div>
+            <p id="new-best-msg" class="new-best" style="display:none">🎉 NEW BEST SCORE! 🎉</p>
+        </div>
+		<div id="leaderboard" class="stats">
+  <h3 style="color:#FFD700">🏆 Leaderboard</h3>
+  <div id="leaderboard-list">Loading...</div>
+</div>
+
+        <button onclick="startGame()">Play Again</button>
+    </div>
+</div>
+	<!-- 1️⃣ Firebase libraries -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- 2️⃣ Firebase init -->
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyA4WE8b7S-uqqPZ2xQznZS4FDoYgkvcKrA",
+  authDomain: "speed-runner-56175.firebaseapp.com",
+  projectId: "speed-runner-56175",
+  storageBucket: "speed-runner-56175.firebasestorage.app",
+  messagingSenderId: "81044322138",
+  appId: "1:81044322138:web:c9cf29677c92d40546e563"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore(); 	
+	 </script> 
+
+
+
+<script>
+/* ===== VH FIX ===== */
+function fixVH(){
+    document.documentElement.style.setProperty('--vh', window.innerHeight * 0.01 + 'px');
+}
+fixVH(); window.addEventListener('resize', fixVH);
+
+/* ===== ELEMENTS ===== */
+const screen = document.getElementById('game-screen');
+const bird = document.getElementById('bird');
+const scoreEl = document.getElementById('score');
+const bestScoreEl = document.getElementById('best-score');
+const shieldIndicator = document.getElementById('shield-indicator');
+const startUI = document.getElementById('start');
+const overUI = document.getElementById('over');
+
+/* ===== GAME VARS ===== */
+let w,h,bw,bh,bx;
+let speed, score, bestScore = 0, loop;
+	let isGameOver = false; // ✅ REQUIRED
+let shield=false;
+let lastShieldSpawn=0;
+let pillarCount=0;
+let lastColorChange=0;
+
+/* ===== LOAD BEST SCORE ===== */
+function loadBestScore(){
+  const playerInput = document.getElementById("playerName");
+  const profile = loadPlayerProfile();
+
+  if(profile.name){
+    playerInput.value = profile.name;
+    playerInput.style.display = "none";
+  }
+
+  try {
+    const saved = localStorage.getItem('speedRunnerBest');
+    if(saved) bestScore = parseInt(saved);
+  } catch(e) {
+    console.log("Storage not available");
+  }
+
+  updateBestScoreDisplay();
+}
+
+
+function saveBestScore(){
+    try {
+        localStorage.setItem('speedRunnerBest', bestScore);
+    } catch(e) {
+        console.log("Storage not available");
+    }
+}
+
+function updateBestScoreDisplay(){
+    bestScoreEl.textContent = 'Best: ' + bestScore;
+    document.getElementById('menu-best').textContent = bestScore;
+}
+
+loadBestScore();
+
+/* ===== TUNING ===== */
+const BASE_SPEED = 2;
+const MAX_SPEED = 20;
+const SPEED_PER_SCORE = 0.35;
+const SPEED_PICKUP_BOOST = 1.2;
+
+const SHIELD_SPAWN_INTERVAL = 8000; // Shield spawns every 8 seconds
+const SHIELD_DURATION = 5000; // Shield lasts 5 seconds
+const SHIELD_START_SCORE = 20; // Shield starts spawning at score 20
+const HIGH_SPEED_WARNING = 7;
+
+const PILLAR_HEIGHT_RATIO = 0.08;
+const PILLAR_SPACING_RATIO = 0.35;
+
+let shieldStartTime = 0;
+
+/* ===== RESIZE ===== */
+function resize(){
+    w = screen.clientWidth;
+    h = screen.clientHeight;
+    bw = bird.offsetWidth;
+    bh = bird.offsetHeight;
+    bx = w/2 - bw/2;
+    bird.style.left = bx+'px';
+}
+resize(); window.addEventListener('resize', resize);
+
+/* ===== INPUT ===== */
+screen.addEventListener('mousemove', move);
+screen.addEventListener('touchmove', move, {passive:false});
+
+function move(e){
+    if(!loop) return;
+    const rect = screen.getBoundingClientRect();
+    const x = (e.touches?e.touches[0].clientX:e.clientX) - rect.left;
+    bx = Math.max(0, Math.min(w-bw, x-bw/2));
+    bird.style.left = bx+'px';
+    e.preventDefault();
+}
+
+/* ===== COLLISION ===== */
+function circleRect(cx,cy,r,rx,ry,rw,rh){
+    const nx = Math.max(rx, Math.min(cx, rx+rw));
+    const ny = Math.max(ry, Math.min(cy, ry+rh));
+    const dx = cx-nx, dy = cy-ny;
+    return dx*dx + dy*dy < r*r;
+}
+
+function safeDocId(name){
+  return name.toLowerCase().replace(/[^a-z0-9_-]/g, "_");
+}
+
+function getDeviceId(){
+  let id = localStorage.getItem("sr_deviceId");
+  if(!id){
+    id = Math.random().toString(36).slice(2, 10);
+    localStorage.setItem("sr_deviceId", id);
+  }
+  return id;
+}
+
+	function saveScoreToFirebase(name, score){
+  if (typeof name !== "string" || !name.trim() || name === "NaN") {
+    name = "Player";
+  }
+
+  const docId = safeDocId(name + "_" + getDeviceId());
+  const ref = db.collection("leaderboard").doc(docId);
+
+  ref.get().then(doc => {
+    const oldScore = doc.exists ? Number(doc.data().score) || 0 : 0;
+
+    if (!doc.exists || score > oldScore) {
+      ref.set({
+        name: name,
+        score: score,
+        time: Date.now()
+      });
+    }
+  });
+}
+
+	function getMock(score, rank){
+  if(rank === 1) return "🔥 KING";
+  if(rank === 2) return "😎 Noob";
+  if(rank === 3) return "💀 Bro just started";
+  if(rank === 4) return "🌈 i am gay";
+
+  if(score >= 10) return "🐢 Lolapaki";
+  if(score >= 5) return "🙂 Badka Noob";
+  if(score >= 2) return "😅 Kaabil";
+  return "💀 Noob Pro Max";
+}
+
+function loadLeaderboard(){
+  db.collection("leaderboard")
+    .orderBy("score", "desc")
+    .limit(10)
+    .get()
+    .then(snapshot => {
+      let html = "";
+      let rank = 1;
+
+      snapshot.forEach(doc => {
+        const d = doc.data();
+
+        const name =
+          typeof d.name === "string" && d.name.trim()
+            ? d.name
+            : "Player";
+
+        const score = Number(d.score) || 0; // ✅ SAFE
+
+        const mock = getMock(score, rank); // ✅ FIXED
+
+        html += `
+          <div class="stat-row">
+            <span class="stat-label">
+              ${rank}. ${name}
+              <small style="opacity:0.7"> ${mock}</small>
+            </span>
+            <span class="stat-value">${score}</span>
+          </div>
+        `;
+
+        rank++;
+      });
+
+      document.getElementById("leaderboard-list").innerHTML = html;
+    })
+    .catch(() => {
+      document.getElementById("leaderboard-list").innerHTML =
+        "<p style='color:#B0BEC5'>Waiting for network...</p>";
+    });
+}
+
+
+/* ===== PILLARS ===== */
+function pillarHeight(){ return h * PILLAR_HEIGHT_RATIO; }
+
+function spawnPillar(){
+    const p = document.createElement('div');
+    p.className = 'pillar-container';
+    p.dataset.passed = 'false';
+    p.style.top = -pillarHeight() + 'px';
+
+    const holeW = Math.max(w*0.3, bw*2.5);
+    const holeX = Math.random()*(w-holeW);
+
+    addWall(p,holeX);
+    addGap(p,holeW);
+    addWall(p,w-holeX-holeW);
+
+    p.dataset.holeX = holeX;
+    p.dataset.holeW = holeW;
+
+    screen.appendChild(p);
+
+    pillarCount++;
+
+    // SPEED every 2 pillars
+    if(pillarCount % 2 === 0){
+        spawnSpeed(p);
+    }
+}
+
+function addWall(p,w){
+    if(w<=0) return;
+    const d=document.createElement('div');
+    d.className='pillar-segment';
+    d.style.width=w+'px';
+    p.appendChild(d);
+}
+function addGap(p,w){
+    const d=document.createElement('div');
+    d.style.width=w+'px';
+    p.appendChild(d);
+}
+
+/* ===== POWERUPS ===== */
+function spawnSpeed(pillar){
+    const pu=document.createElement('div');
+    pu.className='powerup speed';
+    pu.dataset.type='speed';
+
+    const holeX=parseFloat(pillar.dataset.holeX);
+    const holeW=parseFloat(pillar.dataset.holeW);
+
+    pu.style.left=(holeX + holeW/2 - 16)+'px';
+    pu.style.top=(parseFloat(pillar.style.top)+pillarHeight()+h*0.12)+'px';
+
+    screen.appendChild(pu);
+}
+
+function spawnShield(pillar){
+    const pu=document.createElement('div');
+    pu.className='powerup shield';
+    pu.dataset.type='shield';
+
+    const holeX=parseFloat(pillar.dataset.holeX);
+    const holeW=parseFloat(pillar.dataset.holeW);
+
+    pu.style.left=(holeX + holeW/2 - 16)+'px';
+    pu.style.top=(parseFloat(pillar.style.top)+pillarHeight()+h*0.12)+'px';
+
+    screen.appendChild(pu);
+}
+
+/* ===== SHIELD MANAGEMENT ===== */
+function activateShield(){
+    shield = true;
+    shieldStartTime = Date.now();
+    bird.classList.add('shield');
+    shieldIndicator.classList.add('active');
+}
+
+function deactivateShield(){
+    shield = false;
+    bird.classList.remove('shield');
+    shieldIndicator.classList.remove('active');
+}
+
+function checkShieldExpiry(){
+    if(shield && Date.now() - shieldStartTime > SHIELD_DURATION){
+        deactivateShield();
+    }
+}
+
+/* ===== VISUAL EFFECTS ===== */
+const backgroundColors = [
+    ['#B3E5FC', '#81D4FA'], // Light Sky Blue (default)
+    ['#FFCCBC', '#FFAB91'], // Light Coral
+    ['#C8E6C9', '#A5D6A7'], // Light Green
+    ['#FFF9C4', '#FFF59D'], // Light Yellow
+    ['#E1BEE7', '#CE93D8'], // Light Purple
+    ['#FFCDD2', '#EF9A9A'], // Light Pink
+    ['#B2EBF2', '#80DEEA'], // Light Cyan
+    ['#FFE0B2', '#FFCC80'], // Light Orange
+    ['#BBDEFB', '#90CAF9'], // Light Blue
+    ['#F5F5F5', '#E0E0E0']  // Light Gray
+];
+
+function changeBackgroundColor(){
+    const colors = backgroundColors[Math.floor(Math.random() * backgroundColors.length)];
+    screen.style.background = `linear-gradient(180deg, ${colors[0]} 0%, ${colors[1]} 100%)`;
+}
+
+function updateEffects(){
+    const intensity = Math.min(1,(speed-HIGH_SPEED_WARNING)/3);
+
+    if(!shield && intensity > 0){
+        bird.style.boxShadow = `0 0 ${20+30*intensity}px rgba(255,80,80,${intensity}), 0 4px 8px rgba(0,0,0,0.3)`;
+    }
+
+    if(speed > HIGH_SPEED_WARNING){
+        const shake = intensity*6;
+        screen.style.transform =
+            `translate(${(Math.random()-0.5)*shake}px, ${(Math.random()-0.5)*shake}px)`;
+    } else {
+        screen.style.transform='translate(0,0)';
+    }
+}
+
+/* ===== GAME LOOP ===== */
+function update(){
+	if(isGameOver) return; 
+    const cy=h*0.8;
+    const cx=bx + bw/2;
+    const r=bw/2;
+    const ph=pillarHeight();
+
+    updateEffects();
+    checkShieldExpiry();
+
+    document.querySelectorAll('.pillar-container').forEach(p=>{
+        const y=parseFloat(p.style.top)+speed;
+        p.style.top=y+'px';
+
+        // Only check collision if no shield
+   if(!shield){
+    let x = 0;
+
+    for(const s of p.children){
+        const sw = parseFloat(s.style.width);
+
+        // ✅ COLLIDE ONLY WITH WALLS
+        if(s.classList.contains("pillar-segment")){
+            if(circleRect(cx, cy, r, x, y, sw, ph)){
+                if(!isGameOver){
+                    isGameOver = true;
+                    endGame();
+                }
+                return;
+            }
+        }
+
+        x += sw;
+    }
+}
+
+
+        if(y>cy && p.dataset.passed==='false'){
+            p.dataset.passed='true';
+            score++;
+            speed = Math.min(
+                MAX_SPEED,
+                BASE_SPEED + score*SPEED_PER_SCORE
+            );
+            scoreEl.textContent='Score: '+score;
+            
+            // Update best score in real-time
+            if(score > bestScore){
+                bestScore = score;
+                updateBestScoreDisplay();
+            }
+            
+            // Change background color every 50 points
+            if(score % 50 === 0 && score !== lastColorChange){
+                lastColorChange = score;
+                changeBackgroundColor();
+            }
+        }
+
+        if(y>h) p.remove();
+    });
+
+    document.querySelectorAll('.powerup').forEach(p=>{
+        const y=parseFloat(p.style.top)+speed;
+        p.style.top=y+'px';
+
+        if(circleRect(cx,cy,r,parseFloat(p.style.left),y,32,32)){
+            if(p.dataset.type==='speed'){
+                speed = Math.min(MAX_SPEED, speed + SPEED_PICKUP_BOOST);
+            }
+            if(p.dataset.type==='shield'){
+                activateShield();
+            }
+            p.remove();
+        }
+        if(y>h) p.remove();
+    });
+
+    ensureSinglePillar();
+    shieldTimer();
+}
+
+/* ===== SPAWN CONTROL ===== */
+function ensureSinglePillar(){
+    const pillars=document.querySelectorAll('.pillar-container');
+    if(!pillars.length){
+        spawnPillar(); return;
+    }
+    const last=pillars[pillars.length-1];
+    if(parseFloat(last.style.top) > h * PILLAR_SPACING_RATIO){
+        spawnPillar();
+    }
+}
+
+/* ===== SHIELD TIMER - FIXED ===== */
+function shieldTimer(){
+    // Only spawn shields after reaching score 20
+    if(score < SHIELD_START_SCORE) return;
+    
+    // Check if enough time has passed since last shield spawn
+    if(Date.now() - lastShieldSpawn > SHIELD_SPAWN_INTERVAL){
+        const last=document.querySelector('.pillar-container:last-child');
+        if(last) {
+            spawnShield(last);
+            lastShieldSpawn = Date.now();
+        }
+    }
+}
+
+/* ===== GAME STATE ===== */
+function startGame(){
+	const playerNameInput = document.getElementById("playerName");
+if(playerNameInput && !playerNameInput.value.trim()){
+  playerNameInput.value = "Player";
+}
+       isGameOver = false;
+    speed=BASE_SPEED;
+    const profile = loadPlayerProfile();
+score = profile.score || 0;
+    pillarCount=0;
+    lastShieldSpawn=Date.now();
+    lastColorChange=0;
+    
+    deactivateShield();
+
+    scoreEl.textContent = 'Score: ' + score;
+    bird.style.boxShadow='0 4px 8px rgba(0,0,0,0.3)';
+    
+    // Reset to default light background
+    screen.style.background = 'linear-gradient(180deg, #B3E5FC 0%, #81D4FA 100%)';
+
+    screen.querySelectorAll('.pillar-container,.powerup').forEach(e=>e.remove());
+    startUI.style.display='none';
+    overUI.style.display='none';
+
+    loop=setInterval(update,1000/60);
+}
+
+function endGame(){
+  clearInterval(loop);
+  loop = null;
+  screen.style.transform = 'translate(0,0)';
+
+  const playerName =
+    document.getElementById("playerName")?.value ||
+    localStorage.getItem("sr_playerName") ||
+    "Guest";
+
+  // save local profile (resume)
+  savePlayerProfile(playerName, score);
+	saveScoreToFirebase(playerName, score);
+
+
+ 
+
+  loadLeaderboard();
+
+  if(score > bestScore){
+    bestScore = score;
+    saveBestScore();
+    updateBestScoreDisplay();
+  }
+
+  document.getElementById('final-score').textContent = score;
+  document.getElementById('final-best').textContent = bestScore;
+
+	sessionStorage.removeItem("sr_playerScore");
+
+
+  overUI.style.display = 'flex';
+}
+
+
+	function savePlayerProfile(name, score){
+  localStorage.setItem("sr_playerName", name);
+  sessionStorage.setItem("sr_playerScore", score);
+
+}
+
+function loadPlayerProfile(){
+  return {
+    name: localStorage.getItem("sr_playerName"),
+    score: parseInt(sessionStorage.getItem("sr_playerScore") || "0")
+
+  };
+}
+
+</script>
+
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
