@@ -9,7 +9,7 @@ Welcome to my personal App Store! This is a collection of useful web tools and f
 
 3. Once it opens, upload your PDF and customize it however you want ✨
 
-* Live web [https://saqib791.github.io/Saqib-App-Store/SaqibAppStore.html](https://mohdsaqibqamar.github.io/Saqib-App-Store/SaqibAppStore.html)
+* Live web (https://mohdsaqibqamar.github.io/Saqib-App-Store/SaqibAppStore.html)
 
   ## 🛠 PDF Magic Tools (Latest Update)
 My latest HTML tools allow you to play with your PDF files directly in the browser. No installation, no fuss!
